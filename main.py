@@ -1,11 +1,14 @@
 import asyncio
 import httpx
 import datetime
-import random
 from typing import Optional, List, Dict
+
+# 导入 AstrBot 核心组件
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
+
+# 核心：导入消息链和组件
 from astrbot.core.message.message_event_result import MessageChain
 from astrbot.api.message_components import Image, Plain, Record
 
@@ -21,7 +24,7 @@ def is_cron_time(cron_str: str, now: datetime.datetime):
         return True
     except: return False
 
-@register("astrbot_pulgin_60sapi", "FovePig", "60s api 综合终极全功能版", "1.5.5")
+@register("astrbot_pulgin_60sapi", "FovePig", "60s api 综合终极全功能版", "1.6.1")
 class VikiSuperBot(Star):
     def __init__(self, context: Context, config: dict):
         super().__init__(context)
@@ -29,60 +32,60 @@ class VikiSuperBot(Star):
         self.base_url = config.get("api_base_url", "https://60s.viki.moe").rstrip("/")
         self.global_groups = config.get("global_target_groups", [])
         
-        # 启动定时任务轮询
+        logger.info(f"[Viki] 插件加载成功。当前 API 基础地址: {self.base_url}")
+        # 启动定时任务
         asyncio.create_task(self.scheduler_loop())
 
     async def fetch_api(self, endpoint: str, params: dict = None) -> Optional[dict]:
-        """统一请求函数，带长超时逻辑"""
+        """统一请求函数"""
         url = f"{self.base_url}{endpoint}"
         try:
             async with httpx.AsyncClient(timeout=40, follow_redirects=True) as client:
                 resp = await client.get(url, params=params)
                 if resp.status_code == 200: return resp.json()
-                logger.error(f"[Viki] 接口返回异常: {resp.status_code}")
+                logger.error(f"[Viki] 接口响应异常: {resp.status_code} URL: {url}")
         except Exception as e:
-            logger.error(f"[Viki] 请求异常: {e}")
+            logger.error(f"[Viki] 网络请求异常: {e} URL: {url}")
         return None
 
     def safe_get_text(self, data_obj) -> str:
-        """【终极修复】暴力提取各种非标接口的文字内容"""
-        if not data_obj: return "❌ 未获取到数据"
+        """【终极修复】安全提取文字，兼容所有非标接口字段"""
+        if not data_obj: return "❌ 获取数据失败"
         res = data_obj.get("data")
         if res is None: res = data_obj.get("result") or data_obj.get("content") or data_obj
-        if not res: return "❌ 服务器返回空"
+        if not res: return "❌ 服务器返回内容为空"
         if isinstance(res, str): return res
         if isinstance(res, dict):
-            # 兼容 KFC, 一言, 翻译等各种字段名
-            for key in ["kfc", "text", "content", "result", "cp_content", "description", "msg", "answer"]:
+            # 兼容 KFC, 翻译, 一言等所有字段
+            for key in ["kfc", "text", "content", "result", "cp_content", "description", "msg"]:
                 val = res.get(key)
                 if val and isinstance(val, str): return val
-            # 暴力扫描：取第一个长度大于2的字符串
             for val in res.values():
                 if isinstance(val, str) and len(val) > 2: return val
         return str(res)
 
     async def get_result_chain(self, endpoint: str, params: dict = None, name: str = "数据"):
-        """统一处理图片/列表/文字结果，解决 KeyError: 'image'"""
+        """统一处理图片和新闻列表逻辑"""
         data = await self.fetch_api(endpoint, params)
         if not data or "data" not in data:
-            return MessageChain(chain=[Plain(f"❌ 无法连接服务器获取{name}")])
+            return MessageChain(chain=[Plain(f"❌ 无法从服务器获取{name}")])
         
         res = data["data"]
         if isinstance(res, str): return MessageChain(chain=[Plain(f"💡 {name}: {res}")])
         
-        # 提取图片
+        # 处理图片
         image_url = res.get("image") if isinstance(res, dict) else None
         if image_url: return MessageChain(chain=[Image.fromURL(image_url)])
         
-        # 提取新闻/列表文本
+        # 处理新闻列表
         news = res.get("news") if isinstance(res, dict) else None
         if news and isinstance(news, list):
-            return MessageChain(chain=[Plain(f"【{name}】\n" + "\n".join([str(x) for x in news[:15]]))])
+            text = f"【{name}】\n" + "\n".join([str(x) for x in news[:15]])
+            return MessageChain(chain=[Plain(text)])
             
         return MessageChain(chain=[Plain(f"💡 {name}: {self.safe_get_text(data)}")])
 
     async def get_push_targets(self) -> List[str]:
-        """留空则全发"""
         targets = self.config.get("global_target_groups", [])
         if not targets:
             try:
@@ -95,16 +98,20 @@ class VikiSuperBot(Star):
     async def scheduler_loop(self):
         while True:
             now = datetime.datetime.now()
-            # 定时推送检查
+            # 1. 60s
             if self.config.get("enable_60s") and is_cron_time(self.config.get("cron_60s", ""), now):
                 await self.simple_push("每日新闻", "/v2/60s")
+            # 2. 摸鱼
             if self.config.get("enable_moyu") and is_cron_time(self.config.get("cron_moyu", ""), now):
                 await self.simple_push("摸鱼日历", "/v2/moyu")
+            # 3. 天气
             if self.config.get("enable_weather") and is_cron_time(self.config.get("cron_weather", ""), now):
                 for city in self.config.get("city_weather", ["北京"]):
                     await self.simple_push(f"天气({city})", "/v2/weather", {"city": city})
+            # 4. 汇率
             if self.config.get("enable_exchange") and is_cron_time(self.config.get("cron_exchange", ""), now):
                 await self.simple_push("汇率更新", "/v2/exchange")
+            # 5. 历史
             if self.config.get("enable_history") and is_cron_time(self.config.get("cron_history", ""), now):
                 await self.simple_push("历史上的今天", "/v2/history")
             await asyncio.sleep(60 - now.second)
@@ -126,13 +133,11 @@ class VikiSuperBot(Star):
             "🔥【实时热榜】\n"
             "/微博, /抖音, /哔哩, /小红书, /头条, /知乎, /懂车帝, /网易云, /热帖, /猫眼\n\n"
             "🎮【娱乐休闲】\n"
-            "/随机点歌, /一言, /运势, /趣题, /段子, /发病, /答案, /kfc, /冷笑话, /摸鱼\n"
-            "━━━━━━━━━━━━━━\n"
-            "💡 提示: 全局群号留空则全发。"
+            "/随机点歌, /一言, /运势, /趣题, /段子, /发病, /答案, /kfc, /冷笑话, /摸鱼"
         )
         yield event.plain_result(help_text)
 
-    # --- 实用工具板块 (13个) ---
+    # --- 实用工具 (13个) ---
     @filter.command("60s")
     async def cmd_60s(self, event: AstrMessageEvent):
         yield event.chain_result(await self.get_result_chain("/v2/60s", name="每日新闻"))
@@ -152,15 +157,12 @@ class VikiSuperBot(Star):
     @filter.command("百科")
     async def cmd_baike(self, event: AstrMessageEvent, word: str):
         data = await self.fetch_api("/v2/baike", {"word": word})
-        if data and "data" in data and isinstance(data["data"], dict):
-            res = data["data"]
-            yield event.plain_result(f"【{res.get('title')}】\n{res.get('description')}\n链接: {res.get('url')}")
-        else: yield event.plain_result("❌ 未搜到百科词条")
+        yield event.plain_result(self.safe_get_text(data))
 
     @filter.command("翻译")
     async def cmd_translate(self, event: AstrMessageEvent, text: str, to: str = "zh"):
         data = await self.fetch_api("/v2/translate", {"text": text, "to": to})
-        yield event.plain_result(f"翻译结果: {self.safe_get_text(data)}")
+        yield event.plain_result(f"结果: {self.safe_get_text(data)}")
 
     @filter.command("whois")
     async def cmd_whois(self, event: AstrMessageEvent, domain: str):
@@ -184,7 +186,7 @@ class VikiSuperBot(Star):
         if data and "data" in data and isinstance(data["data"], dict):
             res = data["data"]
             yield event.plain_result(f"歌名: {res.get('title')}\n歌手: {res.get('artist')}\n\n{res.get('lyrics')}")
-        else: yield event.plain_result("❌ 未搜到歌词")
+        else: yield event.plain_result("❌ 未搜到相关歌词")
 
     @filter.command("黄金")
     async def cmd_gold(self, event: AstrMessageEvent):
@@ -198,7 +200,7 @@ class VikiSuperBot(Star):
     async def cmd_epic(self, event: AstrMessageEvent):
         yield event.chain_result(await self.get_result_chain("/v2/epic", name="Epic游戏"))
 
-    # --- 实时热榜板块 (10个) ---
+    # --- 热榜 (10个) ---
     @filter.command("微博")
     async def cmd_weibo(self, event: AstrMessageEvent):
         yield event.chain_result(await self.get_result_chain("/v2/weibo", name="微博热搜"))
@@ -213,7 +215,7 @@ class VikiSuperBot(Star):
 
     @filter.command("小红书")
     async def cmd_xhs(self, event: AstrMessageEvent):
-        yield event.chain_result(await self.get_result_chain("/v2/xhs", name="小红书热点"))
+        yield event.chain_result(await self.get_result_chain("/v2/xhs", name="小红书热榜"))
 
     @filter.command("头条")
     async def cmd_toutiao(self, event: AstrMessageEvent):
@@ -239,7 +241,7 @@ class VikiSuperBot(Star):
     async def cmd_maoyan(self, event: AstrMessageEvent):
         yield event.chain_result(await self.get_result_chain("/v2/maoyan_global", name="猫眼票房"))
 
-    # --- 娱乐休闲板块 (10个) ---
+    # --- 娱乐休闲 (10个) ---
     @filter.command("随机点歌")
     async def cmd_random_song(self, event: AstrMessageEvent):
         data = await self.fetch_api("/v2/rand_song")
@@ -249,13 +251,13 @@ class VikiSuperBot(Star):
             title = "随机点歌"
             if isinstance(res, dict):
                 url = res.get("url") or res.get("music_url")
-                title = res.get("title") or "随机音频"
+                title = res.get("title") or "随机点歌"
             elif isinstance(res, str) and res.startswith("http"):
                 url = res
             if url:
                 yield event.chain_result(MessageChain(chain=[Record.fromURL(url), Plain(f"\n🎵 {title}")]))
                 return
-        yield event.plain_result("❌ 随机点歌失败")
+        yield event.plain_result("❌ 随机音频获取失败")
 
     @filter.command("一言")
     async def cmd_hitokoto(self, event: AstrMessageEvent):
