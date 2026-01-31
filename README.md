@@ -25,7 +25,7 @@
 ## 🛠️ 安装方法
 
 1.  进入 AstrBot 的 `data/plugins/` 目录。
-2.  创建一个文件夹命名为 `viki_super_bot`。
+2.  创建一个文件夹命名为 `starbot_pulgin_60sapi`。
 3.  将本插件的 `main.py` 和 `_conf_schema.json` 放入该文件夹。
 4.  重启 AstrBot。
 
