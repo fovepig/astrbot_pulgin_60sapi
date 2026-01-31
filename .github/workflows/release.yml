@@ -9,20 +9,30 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions: # 显式授予写入权限，防止报错
+      contents: write
+      
     steps:
       - name: 检出代码
         uses: actions/checkout@v3
 
       - name: 打包 ZIP 文件
         run: |
-          # 创建一个临时目录用来存放插件，这样解压后会有一个文件夹
+          # 创建文件夹，确保解压后不是散乱的文件
           mkdir viki_super_bot
+          # 复制你需要的文件到文件夹里
           cp main.py _conf_schema.json README.md viki_super_bot/
           zip -r viki_super_bot.zip viki_super_bot/
 
       - name: 发布 Release
         uses: softprops/action-gh-release@v1
         with:
+          # 如果是手动运行，就使用 latest 作为标签名；如果是推送 Tag，就用 Tag 名
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           files: viki_super_bot.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true # 自动生成更新日志
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
