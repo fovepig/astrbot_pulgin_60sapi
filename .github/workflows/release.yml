@@ -19,10 +19,10 @@ jobs:
       - name: 打包 ZIP 文件
         run: |
           # 创建文件夹，确保解压后不是散乱的文件
-          mkdir astr_pulgin_60sapi
+          mkdir astrbot_pulgin_60sapi
           # 复制你需要的文件到文件夹里
-          cp main.py _conf_schema.json README.md astr_pulgin_60sapi/
-          zip -r astr_pulgin_60sapi.zip astr_pulgin_60sapi/
+          cp main.py _conf_schema.json README.md astrbot_pulgin_60sapi/
+          zip -r astrbot_pulgin_60sapi.zip astrbot_pulgin_60sapi/
 
       - name: 发布 Release
         uses: softprops/action-gh-release@v1
@@ -30,7 +30,7 @@ jobs:
           # 如果是手动运行，就使用 latest 作为标签名；如果是推送 Tag，就用 Tag 名
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
-          files: astr_pulgin_60sapi.zip
+          files: astrbot_pulgin_60sapi.zip
           draft: false
           prerelease: false
           generate_release_notes: true # 自动生成更新日志
