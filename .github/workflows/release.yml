@@ -1,0 +1,27 @@
+name: 打包插件并发布
+
+on:
+  push:
+    tags:
+      - 'v*' # 当你推送以 v 开头的标签（如 v1.4.0）时触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+
+      - name: 打包 ZIP 文件
+        run: |
+          # 创建一个临时目录用来存放插件，这样解压后会有一个文件夹
+          mkdir viki_super_bot
+          cp main.py _conf_schema.json README.md viki_super_bot/
+          zip -r viki_super_bot.zip viki_super_bot/
+
+      - name: 发布 Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: viki_super_bot.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
