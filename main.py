@@ -3,9 +3,13 @@ import httpx
 import datetime
 import random
 from typing import Optional, List, Dict
+
+# 导入 AstrBot 核心组件
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
+
+# 核心：导入消息链和组件
 from astrbot.core.message.message_event_result import MessageChain
 from astrbot.api.message_components import Image, Plain, Record
 
@@ -21,7 +25,7 @@ def is_cron_time(cron_str: str, now: datetime.datetime):
         return True
     except: return False
 
-@register("astrbot_pulgin_60sapi", "FovePig", "60s api 综合全功能版", "1.5.1")
+@register("astrbot_pulgin_60sapi", "FovePig", "60s api 综合终极版", "1.5.2")
 class VikiSuperBot(Star):
     def __init__(self, context: Context, config: dict):
         super().__init__(context)
@@ -44,46 +48,33 @@ class VikiSuperBot(Star):
         return None
 
     def safe_get_text(self, data_obj) -> str:
-        """【深度修复】针对 KFC 等特殊接口的字段进行兼容"""
+        """安全提取文字逻辑"""
         if not data_obj: return "❌ 未获取到数据"
-        
         res = data_obj.get("data")
         if res is None:
             res = data_obj.get("result") or data_obj.get("content") or data_obj
-            
-        if not res: return "❌ 服务器返回了空内容"
+        if not res: return "❌ 内容为空"
         if isinstance(res, str): return res
-        
         if isinstance(res, dict):
-            # 针对性匹配所有已知的 Viki API 字段名，增加了 'kfc'
-            for key in ["kfc", "text", "content", "result", "cp_content", "description", "msg", "name"]:
+            for key in ["kfc", "text", "content", "result", "cp_content", "description", "msg"]:
                 val = res.get(key)
                 if val and isinstance(val, str): return val
-            
-            # 暴力扫描逻辑：找出字典里第一个长度大于 2 的字符串
             for val in res.values():
-                if isinstance(val, str) and len(val) > 2:
-                    return val
-            return f"⚠️ 格式解析失败: {str(res)}"
-            
+                if isinstance(val, str) and len(val) > 2: return val
         return str(res)
 
     async def get_result_chain(self, endpoint: str, params: dict = None, name: str = "数据"):
-        """统一处理图片/新闻结果"""
+        """统一处理图片结果逻辑"""
         data = await self.fetch_api(endpoint, params)
         if not data or "data" not in data:
             return MessageChain(chain=[Plain(f"❌ 无法从服务器获取{name}")])
-        
         res = data["data"]
         if isinstance(res, str): return MessageChain(chain=[Plain(f"💡 {name}: {res}")])
-        
         image_url = res.get("image") if isinstance(res, dict) else None
         if image_url: return MessageChain(chain=[Image.fromURL(image_url)])
-        
         news = res.get("news") if isinstance(res, dict) else None
         if news and isinstance(news, list):
             return MessageChain(chain=[Plain(f"【{name}】\n" + "\n".join([str(x) for x in news[:15]]))])
-            
         return MessageChain(chain=[Plain(f"⚠️ {name}暂无图文内容")])
 
     async def get_push_targets(self) -> List[str]:
@@ -99,7 +90,6 @@ class VikiSuperBot(Star):
     async def scheduler_loop(self):
         while True:
             now = datetime.datetime.now()
-            # 定时推送
             if self.config.get("enable_60s") and is_cron_time(self.config.get("cron_60s", ""), now):
                 await self.simple_push("每日新闻", "/v2/60s")
             if self.config.get("enable_moyu") and is_cron_time(self.config.get("cron_moyu", ""), now):
@@ -123,16 +113,14 @@ class VikiSuperBot(Star):
     @filter.command("60help")
     async def help_menu(self, event: AstrMessageEvent):
         help_text = (
-            "✨ Viki 助手全功能菜单 ✨\n"
+            "✨ 60s 助手全功能菜单 ✨\n"
             "━━━━━━━━━━━━━━\n"
             "🛠【实用工具】\n"
             "/60s, /天气, /汇率, /历史, /百科, /翻译, /whois, /农历, /二维码, /歌词, /黄金, /汽油, /epic\n\n"
             "🔥【实时热榜】\n"
             "/微博, /抖音, /哔哩, /小红书, /头条, /知乎, /懂车帝, /网易云, /热帖, /猫眼\n\n"
             "🎮【娱乐休闲】\n"
-            "/点歌, /一言, /运势, /趣题, /段子, /发病, /答案, /kfc, /冷笑话, /摸鱼\n"
-            "━━━━━━━━━━━━━━\n"
-            "💡 提示: 群号留空则自动全发。"
+            "/随机点歌, /一言, /运势, /趣题, /段子, /发病, /答案, /kfc, /冷笑话, /摸鱼"
         )
         yield event.plain_result(help_text)
 
@@ -244,16 +232,24 @@ class VikiSuperBot(Star):
         yield event.chain_result(await self.get_result_chain("/v2/maoyan_global", name="猫眼票房"))
 
     # --- 娱乐休闲 ---
-    @filter.command("点歌")
+    @filter.command("随机点歌")
     async def cmd_random_song(self, event: AstrMessageEvent):
         data = await self.fetch_api("/v2/rand_song")
-        if data and "data" in data and isinstance(data["data"], dict):
+        if data and "data" in data:
             res = data["data"]
-            url = res.get("url")
+            # 增强逻辑：判断 res 是字典还是直接 URL 字符串
+            url = None
+            title = "随机点歌"
+            if isinstance(res, dict):
+                url = res.get("url") or res.get("music_url")
+                title = res.get("title") or "随机音频"
+            elif isinstance(res, str) and res.startswith("http"):
+                url = res
+            
             if url:
-                yield event.chain_result(MessageChain(chain=[Record.fromURL(url), Plain(f"\n🎵 {res.get('title', '随机音频')}")] ))
+                yield event.chain_result(MessageChain(chain=[Record.fromURL(url), Plain(f"\n🎵 {title}")]))
                 return
-        yield event.plain_result("❌ 音频获取失败")
+        yield event.plain_result("❌ 随机点歌获取失败，请稍后再试。")
 
     @filter.command("kfc")
     async def cmd_kfc(self, event: AstrMessageEvent):
@@ -283,7 +279,7 @@ class VikiSuperBot(Star):
     @filter.command("趣题")
     async def cmd_js_quiz(self, event: AstrMessageEvent):
         data = await self.fetch_api("/v2/js_quiz")
-        if data and "data" in data and isinstance(data["data"], dict):
+        if data and "data" in data:
             res = data["data"]
             yield event.plain_result(f"题目：{res.get('question', '未知')}\n答案：{res.get('answer', '未知')}")
         else: yield event.plain_result("❌ 趣题获取失败")
