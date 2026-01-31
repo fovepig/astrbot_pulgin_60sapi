@@ -1,9 +1,66 @@
-# helloworld
+📰 AstrBot Viki Super Bot (全能助手)
+<div align="center">
+![alt text](https://img.shields.io/badge/Version-1.4.0-blue.svg)
 
-AstrBot 插件模板
+![alt text](https://img.shields.io/badge/Platform-AstrBot%20v4.x-orange.svg)
 
-A template plugin for AstrBot plugin feature
+![alt text](https://img.shields.io/badge/Python-3.10%2B-green.svg)
 
-# 支持
-
-- [插件开发文档](https://docs.astrbot.app/dev/star/plugin-new.html)
+![alt text](https://img.shields.io/badge/License-MIT-red.svg)
+</div>
+基于 60s-api.viki.moe 的全能型综合助手。集成了每日新闻、实时热榜、实用工具及娱乐休闲功能，支持强大的 Cron 定时推送 与 多城市天气预报。
+✨ 功能特性
+🚀 30+ 接口集成：涵盖生活、娱乐、资讯三大板块。
+⏰ 工业级定时推送：支持标准的 Cron 表达式（分 时 天 月 周）。
+🗺️ 多城市天气：支持配置多个城市，每天定时轮循推送。
+🎯 智能目标分发：可指定多个群聊推送；若推送列表留空，则自动向机器人加入的所有群组发送。
+🎨 图文并茂：优先使用精美的 V2 版图片接口，视觉体验极佳。
+💬 交互友好：内置 /60help 帮助菜单，一键查看所有功能。
+🛠️ 安装方法
+进入 AstrBot 的 data/plugins/ 目录。
+创建一个文件夹命名为 viki_super_bot。
+将本插件的 main.py 和 _conf_schema.json 放入该文件夹。
+重启 AstrBot。
+⚙️ 配置说明
+插件提供完善的 WebUI 配置界面，请在网页管理面板中修改：
+1. 全局推送目标 (global_target_groups)
+格式：平台名称:消息类型:群号或账号
+示例：aiocqhttp:GroupMessage:123456789
+技巧：若列表为空，定时推送将自动发送给机器人加入的所有群聊。
+2. Cron 表达式示例
+定时任务采用 5 位 Cron 格式：分钟 小时 日 月 周
+0 8 * * *：每天早上 08:00 推送。
+30 7 * * *：每天早上 07:30 推送。
+0 10 * * 1-5：周一至周五的 10:00 推送。
+0 12 * * 5：每周五中午 12:00 推送。
+📖 指令列表
+输入 /60help 即可查看以下所有功能：
+🛠 实用工具
+指令	描述
+/60s	获取每日 60 秒读懂世界新闻图片
+/天气 [城市]	获取指定城市的实时天气预报图
+/汇率	获取当日主要货币汇率走势图
+/历史	历史上的今天
+/百科 [词条]	快速查询百度百科词条简介
+/翻译 [文本] [语言]	支持 100+ 语言互译（默认译为中文）
+/whois [域名]	查询域名注册信息
+/农历	查看今日农历、宜忌与节日信息
+/二维码 [文本]	将文本快速生成为二维码图片
+/歌词 [歌名]	搜索指定歌曲的歌词内容
+/黄金 / /汽油	获取今日金价或油价详情图
+/epic	查看 Epic 平台当前限免游戏
+🔥 实时热榜
+指令：/微博、/抖音、/哔哩、/小红书、/头条、/知乎、/懂车帝、/网易云、/热帖、/猫眼
+效果：返回对应平台当前最热话题的聚合图片。
+🎮 娱乐休闲
+指令：/点歌 (语音消息)、/一言、/运势、/趣题、/段子、/发病、/答案、/kfc (疯狂星期四)、/冷笑话、/摸鱼 (摸鱼日历)
+⚠️ 注意事项
+重启生效：修改 _conf_schema.json 或更新代码后，请务必彻底重启 AstrBot 进程。
+API 稳定性：本插件强依赖于 viki.moe 提供的免费 API，若接口不稳定，请检查 API 基础链接是否可访问。
+音频播放：/点歌 指令发送的是 Record (语音) 组件，请确保你的适配器（如 NapCat/Lagrange）支持发送语音。
+🌟 鸣谢
+API 提供方：60s-api.viki.moe
+框架支持：AstrBot
+如果这个插件帮到了你，请给一个 Star！⭐
+💡 提示：
+你可以根据需要，在 _conf_schema.json 中自行添加更多开启/关闭开关。如果你是小白，直接使用目前的版本即可完美运行！
