@@ -6,7 +6,8 @@ from typing import Optional, List, Dict
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
-from astrbot.api.message_components import Image, MessageChain, Plain, Record
+from astrbot.core.message.message_event_result import MessageChain
+from astrbot.api.message_components import Image, Plain, Record
 
 def is_cron_time(cron_str: str, now: datetime.datetime):
     try:
