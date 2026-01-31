@@ -1,0 +1,13 @@
+{
+  "api_base_url": { "type": "string", "default": "https://60s.viki.moe" },
+  "global_target_groups": { "type": "list", "default": [] },
+  "services": {
+    "type": "dict",
+    "default": {
+      "daily_60s": { "enabled": true, "endpoint": "/v2/60s", "cron": "0 8 * * *", "targets": [] },
+      "weibo_hot": { "enabled": true, "endpoint": "/v2/weibo", "cron": "0 18 * * *", "targets": [] },
+      "moyu": { "enabled": true, "endpoint": "/v2/moyu", "cron": "0 10 * * *", "targets": [] },
+      "weather_report": { "enabled": true, "endpoint": "/v2/weather", "city": "上海", "cron": "30 7 * * *", "targets": [] }
+    }
+  }
+}
