@@ -20,7 +20,7 @@ def is_cron_time(cron_str: str, now: datetime.datetime):
         return True
     except: return False
 
-@register("astrbot_pulgin_60sapi", "FovePig", "60s-api集合", "1.4.0")
+@register("astrbot_pulgin_60sapi", "FovePig", "60s api 集合", "0.1.1")
 class VikiSuperBot(Star):
     def __init__(self, context: Context, config: dict):
         super().__init__(context)
@@ -44,14 +44,12 @@ class VikiSuperBot(Star):
         """智能获取推送目标：配置为空则获取所有群组"""
         targets = self.config.get("global_target_groups", [])
         if not targets:
-            # 如果配置为空，尝试从 context 获取机器人所在的所有统一消息源（群聊/私聊）
             try:
-                # 注意：不同版本的 AstrBot 获取所有群组的方法可能略有不同
-                # 这里使用 get_all_unified_msg_origins 是最通用的做法
+                # 获取机器人所在的所有统一消息源
                 all_origins = await self.context.get_all_unified_msg_origins()
-                # 过滤掉非群组消息（可选，如果只想发群的话）
+                # 优先推送给群组
                 targets = [origin for origin in all_origins if "GroupMessage" in origin]
-                if not targets: targets = all_origins # 如果没搜到群，就全发
+                if not targets: targets = all_origins 
             except Exception as e:
                 logger.error(f"自动获取群组列表失败: {e}")
         return targets
@@ -87,19 +85,29 @@ class VikiSuperBot(Star):
         data = await self.fetch_api(endpoint, params)
         if not data or "data" not in data: return
         res = data["data"]
-        chain = MessageChain()
+        
+        # 构造消息组件列表
+        components = []
         if isinstance(res, dict) and "image" in res:
-            chain.add(Image.fromURL(res["image"]))
+            components.append(Image.fromURL(res["image"]))
         elif isinstance(res, dict) and "news" in res:
-            chain.add(Plain(f"【{name}】\n" + "\n".join(res["news"][:15])))
+            text = f"【{name}】\n" + "\n".join(res["news"][:15])
+            components.append(Plain(text))
+        
+        if not components: return
+        
+        # 构造 MessageChain
+        chain = MessageChain(chain=components)
         
         targets = await self.get_push_targets()
         for target in targets:
-            try: await self.context.send_message(target, chain)
-            except Exception as e: logger.error(f"推送至 {target} 失败: {e}")
+            try: 
+                await self.context.send_message(target, chain)
+            except Exception as e: 
+                logger.error(f"推送至 {target} 失败: {e}")
 
     # ==========================
-    #      指令部分 (保持全量)
+    #      指令部分
     # ==========================
     @filter.command("60help")
     async def help_menu(self, event: AstrMessageEvent):
@@ -109,7 +117,7 @@ class VikiSuperBot(Star):
             "🛠【实用工具】\n"
             "/60s, /天气 [城市], /汇率, /历史, /百科 [词条], /翻译 [文] [语言], /whois [域名], /农历, /二维码 [文], /歌词 [名], /黄金, /汽油, /epic\n\n"
             "🔥【实时热榜】\n"
-            "/微博, /抖音, /哔哩, /小红书, /头条, /知乎, /懂车帝, /网易云, /热贴, /猫眼\n\n"
+            "/微博, /抖音, /哔哩, /小红书, /头条, /知乎, /懂车帝, /网易云, /热帖, /猫眼\n\n"
             "🎮【娱乐休闲】\n"
             "/点歌, /一言, /运势, /趣题, /段子, /发病, /答案, /kfc, /冷笑话, /摸鱼\n"
             "━━━━━━━━━━━━━━\n"
@@ -117,26 +125,96 @@ class VikiSuperBot(Star):
         )
         yield event.plain_result(help_text)
 
-    # --- 实用工具 ---
     @filter.command("60s")
     async def cmd_60s(self, event: AstrMessageEvent):
         data = await self.fetch_api("/v2/60s")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
+        if data and "data" in data:
+            yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
 
     @filter.command("天气")
     async def cmd_weather(self, event: AstrMessageEvent, city: str = "北京"):
         data = await self.fetch_api("/v2/weather", {"city": city})
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
+        if data and "data" in data:
+            yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
 
     @filter.command("汇率")
     async def cmd_exchange(self, event: AstrMessageEvent):
         data = await self.fetch_api("/v2/exchange")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
+        if data and "data" in data:
+            yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
 
     @filter.command("历史")
     async def cmd_history(self, event: AstrMessageEvent):
         data = await self.fetch_api("/v2/history")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
+        if data and "data" in data:
+            yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
+
+    @filter.command("微博")
+    async def cmd_weibo(self, event: AstrMessageEvent):
+        data = await self.fetch_api("/v2/weibo")
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
+
+    @filter.command("抖音")
+    async def cmd_douyin(self, event: AstrMessageEvent):
+        data = await self.fetch_api("/v2/douyin")
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
+
+    @filter.command("哔哩")
+    async def cmd_bili(self, event: AstrMessageEvent):
+        data = await self.fetch_api("/v2/bilibili")
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
+
+    @filter.command("小红书")
+    async def cmd_xhs(self, event: AstrMessageEvent):
+        data = await self.fetch_api("/v2/xhs")
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
+
+    @filter.command("头条")
+    async def cmd_toutiao(self, event: AstrMessageEvent):
+        data = await self.fetch_api("/v2/toutiao")
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
+
+    @filter.command("知乎")
+    async def cmd_zhihu(self, event: AstrMessageEvent):
+        data = await self.fetch_api("/v2/zhihu")
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
+
+    @filter.command("懂车帝")
+    async def cmd_dcd(self, event: AstrMessageEvent):
+        data = await self.fetch_api("/v2/dongchedi")
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
+
+    @filter.command("网易云")
+    async def cmd_netease(self, event: AstrMessageEvent):
+        data = await self.fetch_api("/v2/netease_hot")
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
+
+    @filter.command("热帖")
+    async def cmd_hn(self, event: AstrMessageEvent):
+        data = await self.fetch_api("/v2/hn")
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
+
+    @filter.command("猫眼")
+    async def cmd_maoyan(self, event: AstrMessageEvent):
+        data = await self.fetch_api("/v2/maoyan_global")
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
+
+    @filter.command("点歌")
+    async def cmd_random_song(self, event: AstrMessageEvent):
+        data = await self.fetch_api("/v2/rand_song")
+        if data and "data" in data:
+            res = data["data"]
+            yield event.chain_result(MessageChain(chain=[Record.fromURL(res["url"]), Plain(f"\n🎵 {res.get('title')}下")]))
+
+    @filter.command("一言")
+    async def cmd_hitokoto(self, event: AstrMessageEvent):
+        data = await self.fetch_api("/v2/hitokoto")
+        if data: yield event.plain_result(f"「{data['data']['text']}」 —— {data['data']['author']}")
+
+    @filter.command("运势")
+    async def cmd_fortune(self, event: AstrMessageEvent):
+        data = await self.fetch_api("/v2/fortune")
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
 
     @filter.command("百科")
     async def cmd_baike(self, event: AstrMessageEvent, word: str):
@@ -165,7 +243,7 @@ class VikiSuperBot(Star):
     @filter.command("二维码")
     async def cmd_qrcode(self, event: AstrMessageEvent, text: str):
         data = await self.fetch_api("/v2/qrcode", {"text": text})
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
 
     @filter.command("歌词")
     async def cmd_lyrics(self, event: AstrMessageEvent, title: str):
@@ -177,86 +255,17 @@ class VikiSuperBot(Star):
     @filter.command("黄金")
     async def cmd_gold(self, event: AstrMessageEvent):
         data = await self.fetch_api("/v2/gold")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
 
     @filter.command("汽油")
     async def cmd_petrol(self, event: AstrMessageEvent):
         data = await self.fetch_api("/v2/petrol")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
 
     @filter.command("epic")
     async def cmd_epic(self, event: AstrMessageEvent):
         data = await self.fetch_api("/v2/epic")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
-
-    # --- 热榜 ---
-    @filter.command("微博")
-    async def cmd_weibo(self, event: AstrMessageEvent):
-        data = await self.fetch_api("/v2/weibo")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
-
-    @filter.command("抖音")
-    async def cmd_douyin(self, event: AstrMessageEvent):
-        data = await self.fetch_api("/v2/douyin")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
-
-    @filter.command("哔哩")
-    async def cmd_bili(self, event: AstrMessageEvent):
-        data = await self.fetch_api("/v2/bilibili")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
-
-    @filter.command("小红书")
-    async def cmd_xhs(self, event: AstrMessageEvent):
-        data = await self.fetch_api("/v2/xhs")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
-
-    @filter.command("头条")
-    async def cmd_toutiao(self, event: AstrMessageEvent):
-        data = await self.fetch_api("/v2/toutiao")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
-
-    @filter.command("知乎")
-    async def cmd_zhihu(self, event: AstrMessageEvent):
-        data = await self.fetch_api("/v2/zhihu")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
-
-    @filter.command("懂车帝")
-    async def cmd_dcd(self, event: AstrMessageEvent):
-        data = await self.fetch_api("/v2/dongchedi")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
-
-    @filter.command("网易云")
-    async def cmd_netease(self, event: AstrMessageEvent):
-        data = await self.fetch_api("/v2/netease_hot")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
-
-    @filter.command("热帖")
-    async def cmd_hn(self, event: AstrMessageEvent):
-        data = await self.fetch_api("/v2/hn")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
-
-    @filter.command("猫眼")
-    async def cmd_maoyan(self, event: AstrMessageEvent):
-        data = await self.fetch_api("/v2/maoyan_global")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
-
-    # --- 娱乐 ---
-    @filter.command("点歌")
-    async def cmd_random_song(self, event: AstrMessageEvent):
-        data = await self.fetch_api("/v2/rand_song")
-        if data and "data" in data:
-            res = data["data"]
-            yield event.chain_result(MessageChain().add(Record.fromURL(res["url"])).add(Plain(f"\n🎵 {res.get('title')}")))
-
-    @filter.command("一言")
-    async def cmd_hitokoto(self, event: AstrMessageEvent):
-        data = await self.fetch_api("/v2/hitokoto")
-        if data: yield event.plain_result(f"「{data['data']['text']}」 —— {data['data']['author']}")
-
-    @filter.command("运势")
-    async def cmd_fortune(self, event: AstrMessageEvent):
-        data = await self.fetch_api("/v2/fortune")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
 
     @filter.command("趣题")
     async def cmd_js_quiz(self, event: AstrMessageEvent):
@@ -276,7 +285,7 @@ class VikiSuperBot(Star):
     @filter.command("答案")
     async def cmd_answer(self, event: AstrMessageEvent):
         data = await self.fetch_api("/v2/answer")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
 
     @filter.command("kfc")
     async def cmd_kfc(self, event: AstrMessageEvent):
@@ -291,4 +300,4 @@ class VikiSuperBot(Star):
     @filter.command("摸鱼")
     async def cmd_moyu(self, event: AstrMessageEvent):
         data = await self.fetch_api("/v2/moyu")
-        if data: yield event.chain_result(MessageChain().add(Image.fromURL(data["data"]["image"])))
+        if data: yield event.chain_result(MessageChain(chain=[Image.fromURL(data["data"]["image"])]))
