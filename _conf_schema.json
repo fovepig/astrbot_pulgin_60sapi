@@ -1,13 +1,70 @@
 {
-  "api_base_url": { "type": "string", "default": "https://60s.viki.moe" },
-  "global_target_groups": { "type": "list", "default": [] },
-  "services": {
-    "type": "dict",
-    "default": {
-      "daily_60s": { "enabled": true, "endpoint": "/v2/60s", "cron": "0 8 * * *", "targets": [] },
-      "weibo_hot": { "enabled": true, "endpoint": "/v2/weibo", "cron": "0 18 * * *", "targets": [] },
-      "moyu": { "enabled": true, "endpoint": "/v2/moyu", "cron": "0 10 * * *", "targets": [] },
-      "weather_report": { "enabled": true, "endpoint": "/v2/weather", "city": "上海", "cron": "30 7 * * *", "targets": [] }
-    }
+  "api_base_url": {
+    "description": "60s API 基础链接",
+    "type": "string",
+    "default": "https://60s.viki.moe"
+  },
+  "global_target_groups": {
+    "description": "全局推送目标(平台:类型:群号)",
+    "type": "list",
+    "items": { "type": "string" },
+    "hint": "若留空，则会自动向机器人加入的所有群组推送。",
+    "default": []
+  },
+  "enable_60s": {
+    "description": "开启 60s 新闻定时推送",
+    "type": "bool",
+    "default": true
+  },
+  "cron_60s": {
+    "description": "60s 新闻推送时间",
+    "type": "string",
+    "default": "0 8 * * *"
+  },
+  "enable_moyu": {
+    "description": "开启摸鱼日历定时推送",
+    "type": "bool",
+    "default": false
+  },
+  "cron_moyu": {
+    "description": "摸鱼日历推送时间",
+    "type": "string",
+    "default": "0 10 * * *"
+  },
+  "enable_weather": {
+    "description": "开启天气定时推送",
+    "type": "bool",
+    "default": false
+  },
+  "city_weather": {
+    "description": "天气推送城市(支持添加多个)",
+    "type": "list",
+    "items": { "type": "string" },
+    "default": ["上海"]
+  },
+  "cron_weather": {
+    "description": "天气推送时间",
+    "type": "string",
+    "default": "30 7 * * *"
+  },
+  "enable_exchange": {
+    "description": "开启汇率定时推送",
+    "type": "bool",
+    "default": false
+  },
+  "cron_exchange": {
+    "description": "汇率推送时间",
+    "type": "string",
+    "default": "0 9 * * *"
+  },
+  "enable_history": {
+    "description": "开启历史上的今天推送",
+    "type": "bool",
+    "default": false
+  },
+  "cron_history": {
+    "description": "历史推送时间",
+    "type": "string",
+    "default": "0 9 * * *"
   }
 }
