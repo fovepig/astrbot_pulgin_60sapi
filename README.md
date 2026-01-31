@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/Version-1.4.0-blue.svg)
+![Version](https://img.shields.io/badge/Version-0.1.1-blue.svg)
 ![AstrBot](https://img.shields.io/badge/Platform-AstrBot%20v4.x-orange.svg)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg)
 ![License](https://img.shields.io/badge/License-MIT-red.svg)
